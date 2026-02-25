@@ -1,7 +1,7 @@
 name: CI/CD Pipeline - Promo Voucher
 on:
   push:
-    branches: [ "main", "staging" ]
+    branches: [ "main", "staging", "feat/cicd-setup" ]
   pull_request:
     branches: [ "main", "staging" ]
 
@@ -12,9 +12,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: promodb
+          POSTGRES_DB: voucherdb
           POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: user
         ports:
           - 5432:5432
         options: >-
@@ -42,9 +42,9 @@ jobs:
       - name: Run Unit Tests and Generate Coverage
         run: ./gradlew test jacocoTestReport
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/promodb
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/voucherdb
           SPRING_DATASOURCE_USERNAME: user
-          SPRING_DATASOURCE_PASSWORD: password
+          SPRING_DATASOURCE_PASSWORD: user
 
       - name: Analyze with SonarCloud
         env:
