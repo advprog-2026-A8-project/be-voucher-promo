@@ -1,7 +1,7 @@
 name: CI/CD Pipeline - Promo Voucher
 on:
   push:
-    branches: [ "main", "staging", "feat/cicd-setup" ]
+    branches: [ "main", "staging", "feat/cicd-setup", "feat/voucher" ]
   pull_request:
     branches: [ "main", "staging" ]
 
