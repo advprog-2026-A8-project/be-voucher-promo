@@ -12,6 +12,9 @@ jobs:
   test:
     name: Run Tests & Linter
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pull-requests: read
 
     services:
       postgres:
