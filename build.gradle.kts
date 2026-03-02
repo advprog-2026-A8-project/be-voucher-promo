@@ -22,7 +22,7 @@ tasks.jacocoTestReport {
 
 sonar {
     properties {
-        property("sonar.projectKey", "advprog-2026-A8-project_be-voucher-promo")
+        property("sonar.projectKey", "advprog-2026-a8-project_be-voucher-promo")
         property("sonar.organization", "advprog-2026-a8-project")
         property("sonar.host.url", "https://sonarcloud.io")
     }
