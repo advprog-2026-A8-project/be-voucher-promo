@@ -26,8 +26,6 @@ sonar {
         property("sonar.organization", "advprog-2026-a8-project")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.coverage.jacoco.xmlReportPaths", "${project.layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml")
-        property("sonar.gradle.skipCompile", "true")
-        property("sonar.scm.provider", "git")
     }
 }
 
