@@ -1,17 +1,14 @@
-name: CICD
-
 on:
-  pull_request:
   push:
-    branches:
-      - main
-      - staging
-      - feat/cicd-setup
+    branches: [ "staging", "main", "feat/cicd" ]
+  pull_request:
+    branches: [ "staging", "main", "feat/cicd" ]
 
 jobs:
   test:
-    name: Run Tests & Linter
+    name: Run Tests, Linter & Sonar
     runs-on: ubuntu-22.04
+
     permissions:
       contents: read
       pull-requests: read
@@ -20,7 +17,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: voucherdb
+          POSTGRES_DB: orderdb
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         ports:
@@ -50,12 +47,20 @@ jobs:
       - name: Run Tests & Checkstyle
         run: ./gradlew clean test checkstyleMain checkstyleTest
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/voucherdb
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/orderdb
           SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
           SPRING_DATASOURCE_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
-      - name: SonarCloud Scan
-        run: ./gradlew sonar
+      - name: SonarCloud Scan (PR)
+        if: github.event_name == 'pull_request'
+        run: ./gradlew sonar -Dsonar.gradle.skipCompile=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCloud Scan (Branch)
+        if: github.event_name == 'push'
+        run: ./gradlew sonar -Dsonar.pullrequest.key= -Dsonar.gradle.skipCompile=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN
