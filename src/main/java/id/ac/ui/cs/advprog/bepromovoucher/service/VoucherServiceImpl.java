@@ -45,10 +45,18 @@ public class VoucherServiceImpl implements VoucherService {
         Voucher voucher = voucherRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
 
-        if (!voucher.isActive()) throw new IllegalStateException("Voucher tidak aktif");
-        if (voucher.getQuota() <= 0) throw new IllegalStateException("Kuota voucher habis");
-        if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) throw new IllegalStateException("Voucher kadaluwarsa");
-        if (purchaseAmount < voucher.getMinPurchase()) throw new IllegalStateException("Minimal pembelian tidak terpenuhi");
+        if (!voucher.isActive()) {
+            throw new IllegalStateException("Voucher tidak aktif");
+        }
+        if (voucher.getQuota() <= 0) {
+            throw new IllegalStateException("Kuota voucher habis");
+        }
+        if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Voucher kadaluwarsa");
+        }
+        if (purchaseAmount < voucher.getMinPurchase()) {
+            throw new IllegalStateException("Minimal pembelian tidak terpenuhi");
+        }
 
         return voucher;
     }
