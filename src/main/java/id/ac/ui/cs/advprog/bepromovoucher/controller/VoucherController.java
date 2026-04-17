@@ -27,19 +27,26 @@ public class VoucherController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<?> validateVoucher(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> validateVoucher(@RequestBody Map<String, Object> request) {
         try {
             String code = (String) request.get("code");
             Double amount = Double.valueOf(request.get("amount").toString());
 
             Double discount = voucherService.calculateDiscount(code, amount);
-            return ResponseEntity.ok(Map.of(
+
+            Map<String, Object> response = Map.of(
                     "valid", true,
                     "discountAmount", discount,
                     "finalPrice", amount - discount
-            ));
+            );
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("valid", false, "message", e.getMessage()));
+            Map<String, Object> errorResponse = Map.of(
+                    "valid", false,
+                    "message", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 }
