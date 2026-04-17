@@ -55,4 +55,48 @@ class VoucherControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
     }
+
+    @Test
+    void testValidateVoucherSuccess() throws Exception {
+        String code = "DISKON50";
+        Double amount = 100000.0;
+        Double discount = 50000.0;
+
+        java.util.Map<String, Object> requestBody = java.util.Map.of(
+                "code", code,
+                "amount", amount
+        );
+
+        when(voucherService.calculateDiscount(code, amount)).thenReturn(discount);
+
+        mockMvc.perform(post("/api/vouchers/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.discountAmount").value(50000.0))
+                .andExpect(jsonPath("$.finalPrice").value(50000.0));
+    }
+
+    @Test
+    void testValidateVoucherFailed() throws Exception {
+        String code = "KODE_SALAH";
+        Double amount = 50000.0;
+        String errorMessage = "Voucher tidak ditemukan!";
+
+        java.util.Map<String, Object> requestBody = java.util.Map.of(
+                "code", code,
+                "amount", amount
+        );
+
+        when(voucherService.calculateDiscount(code, amount))
+                .thenThrow(new RuntimeException(errorMessage));
+
+        mockMvc.perform(post("/api/vouchers/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.message").value(errorMessage));
+    }
 }
