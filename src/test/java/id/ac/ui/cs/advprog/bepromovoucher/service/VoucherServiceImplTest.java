@@ -250,4 +250,86 @@ class VoucherServiceImplTest {
         assertEquals("Voucher sudah tidak valid", exception.getMessage());
         verify(voucherRepository, never()).save(any());
     }
+
+    @Test
+    void testUpdateVoucherAdminNotFound() {
+        when(voucherRepository.findByCode("INVALID")).thenReturn(java.util.Optional.empty());
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+                voucherService.updateVoucherAdmin("INVALID", 10, null, null));
+
+        assertEquals("Voucher tidak ditemukan", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateVoucherAdminAddQuotaSuccess() {
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        Voucher result = voucherService.updateVoucherAdmin("DISKON50", 20, null, null);
+
+        assertEquals(120, result.getQuota());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testUpdateVoucherAdminAddQuotaOnExpiredVoucherThrows() {
+        voucher.setExpiryDate(LocalDateTime.now().minusDays(1));
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+
+        Exception exception = assertThrows(IllegalStateException.class, () ->
+                voucherService.updateVoucherAdmin("DISKON50", 10, null, null));
+
+        assertEquals("Tidak bisa menambah kuota voucher yang sudah kadaluwarsa", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateVoucherAdminZeroOrNegativeQuotaIgnored() {
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        Voucher result = voucherService.updateVoucherAdmin("DISKON50", 0, null, null);
+
+        assertEquals(100, result.getQuota());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testUpdateVoucherAdminUpdateExpiry() {
+        LocalDateTime newExpiry = LocalDateTime.now().plusDays(30);
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        Voucher result = voucherService.updateVoucherAdmin("DISKON50", null, newExpiry, null);
+
+        assertEquals(newExpiry, result.getExpiryDate());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testUpdateVoucherAdminSetActiveStatus() {
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        Voucher result = voucherService.updateVoucherAdmin("DISKON50", null, null, false);
+
+        assertFalse(result.isActive());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testUpdateVoucherAdminAllFieldsUpdated() {
+        LocalDateTime newExpiry = LocalDateTime.now().plusDays(14);
+        when(voucherRepository.findByCode("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        Voucher result = voucherService.updateVoucherAdmin("DISKON50", 50, newExpiry, false);
+
+        assertEquals(150, result.getQuota());
+        assertEquals(newExpiry, result.getExpiryDate());
+        assertFalse(result.isActive());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
 }
