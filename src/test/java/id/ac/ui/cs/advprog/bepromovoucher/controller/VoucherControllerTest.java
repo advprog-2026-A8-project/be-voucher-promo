@@ -12,8 +12,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -98,5 +103,74 @@ class VoucherControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.valid").value(false))
                 .andExpect(jsonPath("$.message").value(errorMessage));
+    }
+
+    @Test
+    void testUseVoucherSuccess() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "DISKON50");
+        doNothing().when(voucherService).useVoucher("DISKON50");
+
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Kuota voucher DISKON50 berhasil dikurangi"));
+    }
+
+    @Test
+    void testUseVoucherEmptyCode() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "");
+
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Kode voucher wajib diisi"));
+
+        verify(voucherService, never()).useVoucher(any());
+    }
+
+    @Test
+    void testUseVoucherMissingCode() throws Exception {
+        Map<String, String> requestBody = Map.of();
+
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Kode voucher wajib diisi"));
+
+        verify(voucherService, never()).useVoucher(any());
+    }
+
+    @Test
+    void testUseVoucherServiceThrowsException() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "INVALID");
+        doThrow(new IllegalArgumentException("Voucher tidak ditemukan"))
+                .when(voucherService).useVoucher("INVALID");
+
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Voucher tidak ditemukan"));
+    }
+
+    @Test
+    void testUseVoucherOutOfQuota() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "DISKON50");
+        doThrow(new IllegalStateException("Kuota voucher habis!"))
+                .when(voucherService).useVoucher("DISKON50");
+
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Kuota voucher habis!"));
     }
 }
