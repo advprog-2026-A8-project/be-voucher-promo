@@ -9,4 +9,6 @@ public interface VoucherService {
     List<Voucher> findAllVouchers();
     Voucher validateAndGetVoucher(String code, Double purchaseAmount);
     Double calculateDiscount(String code, Double purchaseAmount);
+
+    void useVoucher(String code);
 }
