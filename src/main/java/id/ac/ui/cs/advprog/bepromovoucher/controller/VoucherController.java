@@ -6,6 +6,8 @@ import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -70,5 +72,18 @@ public class VoucherController {
                     "message", e.getMessage()
             ));
         }
+    }
+
+    @PatchMapping("/admin/update/{code}")
+    public ResponseEntity<Voucher> updateByAdmin(
+            @PathVariable String code,
+            @RequestBody Map<String, Object> body) {
+
+        Integer addQuota = (Integer) body.get("additionalQuota");
+        Boolean status = (Boolean) body.get("isActive");
+        LocalDateTime expiry = body.containsKey("newExpiry") ?
+                LocalDateTime.parse(body.get("newExpiry").toString()) : null;
+
+        return ResponseEntity.ok(voucherService.updateVoucherAdmin(code, addQuota, expiry, status));
     }
 }
