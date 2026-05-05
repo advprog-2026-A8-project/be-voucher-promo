@@ -71,4 +71,22 @@ public class VoucherServiceImpl implements VoucherService {
 
         return strategy.calculate(purchaseAmount, voucher.getDiscountValue());
     }
+
+    @Override
+    @Transactional
+    public void useVoucher(String code) {
+        Voucher voucher = voucherRepository.findByCodeWithLock(code)
+                .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
+
+        if (voucher.getQuota() <= 0) {
+            throw new IllegalStateException("Kuota voucher habis!");
+        }
+
+        if (!voucher.isActive() || voucher.getExpiryDate().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalStateException("Voucher sudah tidak dapat digunakan");
+        }
+
+        voucher.setQuota(voucher.getQuota() - 1);
+        voucherRepository.save(voucher);
+    }
 }
