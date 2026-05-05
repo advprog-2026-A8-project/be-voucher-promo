@@ -49,4 +49,26 @@ public class VoucherController {
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }
+
+    @PostMapping("/use")
+    public ResponseEntity<Map<String, Object>> useVoucher(@RequestBody Map<String, String> request) {
+        try {
+            String code = request.get("code");
+            if (code == null || code.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Kode voucher wajib diisi"));
+            }
+
+            voucherService.useVoucher(code);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Kuota voucher " + code + " berhasil dikurangi"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
 }
