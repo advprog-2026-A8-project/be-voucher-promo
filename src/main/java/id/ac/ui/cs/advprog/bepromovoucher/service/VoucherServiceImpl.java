@@ -83,10 +83,34 @@ public class VoucherServiceImpl implements VoucherService {
         }
 
         if (!voucher.isActive() || voucher.getExpiryDate().isBefore(java.time.LocalDateTime.now())) {
-            throw new IllegalStateException("Voucher sudah tidak dapat digunakan");
+            throw new IllegalStateException("Voucher sudah tidak valid");
         }
 
         voucher.setQuota(voucher.getQuota() - 1);
         voucherRepository.save(voucher);
+    }
+
+    @Override
+    @Transactional
+    public Voucher updateVoucherAdmin(String code, Integer additionalQuota, LocalDateTime newExpiry, Boolean activeStatus) {
+        Voucher voucher = voucherRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
+
+        if (additionalQuota != null && additionalQuota > 0) {
+            if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalStateException("Tidak bisa menambah kuota voucher yang sudah kadaluwarsa");
+            }
+            voucher.setQuota(voucher.getQuota() + additionalQuota);
+        }
+
+        if (newExpiry != null) {
+            voucher.setExpiryDate(newExpiry);
+        }
+
+        if (activeStatus != null) {
+            voucher.setActive(activeStatus);
+        }
+
+        return voucherRepository.save(voucher);
     }
 }
