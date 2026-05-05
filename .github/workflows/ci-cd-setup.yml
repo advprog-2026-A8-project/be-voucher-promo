@@ -67,20 +67,20 @@ jobs:
       - name: Set environment variables
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "APP_PORT=6000" >> $GITHUB_ENV
+            echo "APP_PORT=7000" >> $GITHUB_ENV
             echo "CONTAINER_NAME=voucher_prod" >> $GITHUB_ENV
             echo "IMAGE_TAG=latest" >> $GITHUB_ENV
             echo "DB_CONTAINER_NAME=postgres_voucher_prod" >> $GITHUB_ENV
             echo "DB_NAME=voucherdb_prod" >> $GITHUB_ENV
-            echo "DB_PORT=6001" >> $GITHUB_ENV
+            echo "DB_PORT=7001" >> $GITHUB_ENV
             echo "DB_VOLUME=postgres_data_prod" >> $GITHUB_ENV
           else
-            echo "APP_PORT=6002" >> $GITHUB_ENV
+            echo "APP_PORT=7002" >> $GITHUB_ENV
             echo "CONTAINER_NAME=voucher_staging" >> $GITHUB_ENV
             echo "IMAGE_TAG=staging" >> $GITHUB_ENV
             echo "DB_CONTAINER_NAME=postgres_voucher_staging" >> $GITHUB_ENV
             echo "DB_NAME=voucherdb_staging" >> $GITHUB_ENV
-            echo "DB_PORT=6002" >> $GITHUB_ENV
+            echo "DB_PORT=7002" >> $GITHUB_ENV
             echo "DB_VOLUME=postgres_data_staging" >> $GITHUB_ENV
           fi
 
