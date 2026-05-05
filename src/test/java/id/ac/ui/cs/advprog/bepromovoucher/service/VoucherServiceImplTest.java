@@ -42,10 +42,15 @@ class VoucherServiceImplTest {
         request.setExpiryDate(LocalDateTime.now().plusDays(7));
 
         voucher = Voucher.builder()
-                .code(request.getCode())
+                .code("DISKON50")
                 .discountType(DiscountType.PERCENTAGE)
                 .discountValue(50.0)
                 .build();
+
+        voucher.setActive(true);
+        voucher.setQuota(100);
+        voucher.setExpiryDate(LocalDateTime.now().plusDays(7));
+        voucher.setMinPurchase(10000.0);
     }
 
     @Test
@@ -186,5 +191,63 @@ class VoucherServiceImplTest {
         when(voucherRepository.findByCode("FIXED15")).thenReturn(java.util.Optional.of(voucher));
         Double discount = voucherService.calculateDiscount("FIXED15", 100000.0);
         assertEquals(15000.0, discount);
+    }
+
+    @Test
+    void testUseVoucherSuccess() {
+        when(voucherRepository.findByCodeWithLock("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        assertDoesNotThrow(() -> voucherService.useVoucher("DISKON50"));
+
+        assertEquals(99, voucher.getQuota());
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testUseVoucherNotFound() {
+        when(voucherRepository.findByCodeWithLock("INVALID")).thenReturn(java.util.Optional.empty());
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+                voucherService.useVoucher("INVALID"));
+
+        assertEquals("Voucher tidak ditemukan", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void testUseVoucherOutOfQuota() {
+        voucher.setQuota(0);
+        when(voucherRepository.findByCodeWithLock("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+
+        Exception exception = assertThrows(IllegalStateException.class, () ->
+                voucherService.useVoucher("DISKON50"));
+
+        assertEquals("Kuota voucher habis!", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void testUseVoucherInactive() {
+        voucher.setActive(false);
+        when(voucherRepository.findByCodeWithLock("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+
+        Exception exception = assertThrows(IllegalStateException.class, () ->
+                voucherService.useVoucher("DISKON50"));
+
+        assertEquals("Voucher sudah tidak valid", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void testUseVoucherExpired() {
+        voucher.setExpiryDate(LocalDateTime.now().minusDays(1));
+        when(voucherRepository.findByCodeWithLock("DISKON50")).thenReturn(java.util.Optional.of(voucher));
+
+        Exception exception = assertThrows(IllegalStateException.class, () ->
+                voucherService.useVoucher("DISKON50"));
+
+        assertEquals("Voucher sudah tidak valid", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
     }
 }
