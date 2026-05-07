@@ -2,6 +2,8 @@ package id.ac.ui.cs.advprog.bepromovoucher.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherRequest;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherResponse;
+import id.ac.ui.cs.advprog.bepromovoucher.enums.DiscountType;
 import id.ac.ui.cs.advprog.bepromovoucher.model.Voucher;
 import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
 import org.junit.jupiter.api.Test;
@@ -40,17 +42,34 @@ class VoucherControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private VoucherResponse buildVoucherResponse(String code) {
+        return VoucherResponse.builder()
+                .code(code)
+                .discountType(DiscountType.FIXED_AMOUNT)
+                .discountValue(50000.0)
+                .minPurchase(10000.0)
+                .quota(100)
+                .active(true)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .termsAndConditions("S&K berlaku")
+                .build();
+    }
+
     @Test
     void testCreateVoucherEndpoint() throws Exception {
         VoucherRequest request = new VoucherRequest();
         request.setCode("PROMO2026");
         request.setDiscountType("FIXED_AMOUNT");
+        request.setDiscountValue(50000.0);
+        request.setMinPurchase(10000.0);
+        request.setQuota(100);
+        request.setExpiryDate(LocalDateTime.now().plusDays(7));
+        request.setTermsAndConditions("S&K berlaku");
 
-        Voucher voucher = Voucher.builder().code("PROMO2026").build();
+        VoucherResponse response = buildVoucherResponse("PROMO2026");
+        when(voucherService.createVoucher(any(VoucherRequest.class))).thenReturn(response);
 
-        when(voucherService.createVoucher(any(VoucherRequest.class))).thenReturn(voucher);
-
-        mockMvc.perform(post("/api/vouchers/create")
+        mockMvc.perform(post("/api/vouchers/admin/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -59,12 +78,36 @@ class VoucherControllerTest {
 
     @Test
     void testListVouchersEndpoint() throws Exception {
-        when(voucherService.findAllVouchers()).thenReturn(Arrays.asList(new Voucher(), new Voucher()));
+        when(voucherService.findAllVouchers()).thenReturn(
+                Arrays.asList(buildVoucherResponse("V1"), buildVoucherResponse("V2"))
+        );
 
-        mockMvc.perform(get("/api/vouchers/list"))
+        mockMvc.perform(get("/api/vouchers/admin/list"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
     }
+
+    @Test
+    void testAvailableVouchersEndpoint() throws Exception {
+        when(voucherService.findAvailableVouchers()).thenReturn(
+                Arrays.asList(buildVoucherResponse("DISKON10"), buildVoucherResponse("DISKON20"))
+        );
+
+        mockMvc.perform(get("/api/vouchers/available"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].active").value(true));
+    }
+
+    @Test
+    void testAvailableVouchersEndpointEmpty() throws Exception {
+        when(voucherService.findAvailableVouchers()).thenReturn(Arrays.asList());
+
+        mockMvc.perform(get("/api/vouchers/available"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
 
     @Test
     void testValidateVoucherSuccess() throws Exception {
@@ -181,9 +224,7 @@ class VoucherControllerTest {
 
     @Test
     void testUpdateByAdminSuccess() throws Exception {
-        Voucher updated = Voucher.builder().code("DISKON50").build();
-        updated.setQuota(150);
-        updated.setActive(true);
+        VoucherResponse updated = buildVoucherResponse("DISKON50");
 
         Map<String, Object> requestBody = Map.of("additionalQuota", 50, "isActive", true);
         when(voucherService.updateVoucherAdmin(eq("DISKON50"), eq(50), isNull(), eq(true)))
@@ -203,8 +244,7 @@ class VoucherControllerTest {
         String expiryStr = "2027-01-01T00:00:00";
         LocalDateTime expiry = LocalDateTime.parse(expiryStr);
 
-        Voucher updated = Voucher.builder().code("DISKON50").build();
-        updated.setExpiryDate(expiry);
+        VoucherResponse updated = buildVoucherResponse("DISKON50");
 
         Map<String, Object> requestBody = Map.of("newExpiry", expiryStr);
         when(voucherService.updateVoucherAdmin(eq("DISKON50"), isNull(), eq(expiry), isNull()))
@@ -215,6 +255,34 @@ class VoucherControllerTest {
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("DISKON50"));
+    }
+
+    @Test
+    void testUpdateByAdminVoucherExpiredThrows() throws Exception {
+        Map<String, Object> requestBody = Map.of("additionalQuota", 10);
+        when(voucherService.updateVoucherAdmin(eq("EXPIRED"), eq(10), isNull(), isNull()))
+                .thenThrow(new IllegalStateException("Tidak bisa mengubah voucher yang sudah kadaluwarsa"));
+
+        mockMvc.perform(patch("/api/vouchers/admin/update/EXPIRED")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Tidak bisa mengubah voucher yang sudah kadaluwarsa"));
+    }
+
+    @Test
+    void testUpdateByAdminVoucherNotFound() throws Exception {
+        Map<String, Object> requestBody = Map.of("additionalQuota", 10);
+        when(voucherService.updateVoucherAdmin(eq("INVALID"), eq(10), isNull(), isNull()))
+                .thenThrow(new IllegalArgumentException("Voucher tidak ditemukan"));
+
+        mockMvc.perform(patch("/api/vouchers/admin/update/INVALID")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Voucher tidak ditemukan"));
     }
 
     @PatchMapping("/admin/update/{code}")
