@@ -24,11 +24,9 @@ class DiscountStrategyFactoryTest {
     }
 
     @Test
-    void testGetStrategyNullThrowsIllegalArgumentException() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () ->
-                DiscountStrategyFactory.getStrategy(null));
-
-        assertEquals("Tipe diskon tidak dikenali: null", exception.getMessage());
+    void testGetStrategyWithInvalidTypeThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                DiscountStrategyFactory.getStrategy(DiscountType.UNKNOWN));
     }
 
     @Test

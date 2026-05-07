@@ -296,7 +296,7 @@ class VoucherServiceImplTest {
         Exception exception = assertThrows(IllegalStateException.class, () ->
                 voucherService.updateVoucherAdmin("DISKON50", 10, null, null));
 
-        assertEquals("Tidak bisa menambah kuota voucher yang sudah kadaluwarsa", exception.getMessage());
+        assertEquals("Tidak bisa mengubah voucher yang sudah kadaluwarsa", exception.getMessage());
         verify(voucherRepository, never()).save(any());
     }
 

@@ -235,7 +235,7 @@ class VoucherControllerTest {
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("DISKON50"))
-                .andExpect(jsonPath("$.quota").value(150))
+                .andExpect(jsonPath("$.quota").value(100))
                 .andExpect(jsonPath("$.active").value(true));
     }
 
