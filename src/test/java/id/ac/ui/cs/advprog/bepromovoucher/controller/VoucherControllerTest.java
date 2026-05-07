@@ -102,7 +102,7 @@ class VoucherControllerTest {
         requestBody.setCode(code);
         requestBody.setAmount(amount);
 
-        when(voucherService.calculateDiscount(eq(code), eq(amount))).thenReturn(discount);
+        when(voucherService.calculateDiscount(code, amount)).thenReturn(discount);
 
         mockMvc.perform(post("/api/vouchers/validate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -133,8 +133,7 @@ class VoucherControllerTest {
         request.setAdditionalQuota(50);
         request.setIsActive(true);
 
-        when(voucherService.updateVoucherAdmin(eq("DISKON50"), eq(50), isNull(), eq(true)))
-                .thenReturn(updated);
+        when(voucherService.updateVoucherAdmin("DISKON50", 50, null, true)).thenReturn(updated);
 
         mockMvc.perform(patch("/api/vouchers/admin/update/DISKON50")
                         .contentType(MediaType.APPLICATION_JSON)
