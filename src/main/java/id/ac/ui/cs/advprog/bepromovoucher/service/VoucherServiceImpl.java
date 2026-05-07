@@ -5,24 +5,27 @@ import id.ac.ui.cs.advprog.bepromovoucher.enums.DiscountType;
 import id.ac.ui.cs.advprog.bepromovoucher.model.Voucher;
 import id.ac.ui.cs.advprog.bepromovoucher.repository.VoucherRepository;
 import id.ac.ui.cs.advprog.bepromovoucher.strategy.DiscountStrategy;
-import id.ac.ui.cs.advprog.bepromovoucher.strategy.FixedAmountDiscountStrategy;
-import id.ac.ui.cs.advprog.bepromovoucher.strategy.PercentageDiscountStrategy;
+import id.ac.ui.cs.advprog.bepromovoucher.strategy.DiscountStrategyFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VoucherServiceImpl implements VoucherService {
 
     private final VoucherRepository voucherRepository;
+    private final VoucherMapper voucherMapper;
 
     @Override
     @Transactional
-    public Voucher createVoucher(VoucherRequest request) {
+    public VoucherResponse createVoucher(VoucherRequest request) {
         Voucher voucher = Voucher.builder()
                 .code(request.getCode())
                 .discountType(DiscountType.valueOf(request.getDiscountType().toUpperCase()))
@@ -32,12 +35,23 @@ public class VoucherServiceImpl implements VoucherService {
                 .quota(request.getQuota())
                 .termsAndConditions(request.getTermsAndConditions())
                 .build();
-        return voucherRepository.save(voucher);
+        return voucherMapper.toResponse(voucherRepository.save(voucher));
     }
 
     @Override
-    public List<Voucher> findAllVouchers() {
-        return voucherRepository.findAll();
+    public List<VoucherResponse> findAllVouchers() {
+        return voucherRepository.findAll()
+                .stream()
+                .map(voucherMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<VoucherResponse> findAvailableVouchers() {
+        return voucherRepository.findAvailableVouchers(LocalDateTime.now())
+                .stream()
+                .map(voucherMapper::toResponse)
+                .toList();
     }
 
     @Override
@@ -64,11 +78,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public Double calculateDiscount(String code, Double purchaseAmount) {
         Voucher voucher = validateAndGetVoucher(code, purchaseAmount);
-
-        DiscountStrategy strategy = (voucher.getDiscountType() == DiscountType.PERCENTAGE)
-                ? new PercentageDiscountStrategy()
-                : new FixedAmountDiscountStrategy();
-
+        DiscountStrategy strategy = DiscountStrategyFactory.getStrategy(voucher.getDiscountType());
         return strategy.calculate(purchaseAmount, voucher.getDiscountValue());
     }
 
@@ -92,25 +102,34 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional
-    public Voucher updateVoucherAdmin(String code, Integer additionalQuota, LocalDateTime newExpiry, Boolean activeStatus) {
+    public VoucherResponse updateVoucherAdmin(String code, Integer additionalQuota,
+                                              LocalDateTime newExpiry, Boolean activeStatus) {
         Voucher voucher = voucherRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
 
-        if (additionalQuota != null && additionalQuota > 0) {
-            if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
-                throw new IllegalStateException("Tidak bisa menambah kuota voucher yang sudah kadaluwarsa");
-            }
-            voucher.setQuota(voucher.getQuota() + additionalQuota);
+        if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Tidak bisa mengubah voucher yang sudah kadaluwarsa");
         }
 
+        if (additionalQuota != null && additionalQuota > 0) {
+            voucher.setQuota(voucher.getQuota() + additionalQuota);
+        }
         if (newExpiry != null) {
             voucher.setExpiryDate(newExpiry);
         }
-
         if (activeStatus != null) {
             voucher.setActive(activeStatus);
         }
 
-        return voucherRepository.save(voucher);
+        return voucherMapper.toResponse(voucherRepository.save(voucher));
+    }
+
+    @Override
+    @Transactional
+    @Scheduled(cron = "0 0 0 * * *")
+    public void deactivateExpiredVouchers() {
+        log.info("Running scheduled job: deactivateExpiredVouchers at {}", LocalDateTime.now());
+        voucherRepository.deactivateExpiredVouchers(LocalDateTime.now());
+        log.info("Scheduled job deactivateExpiredVouchers completed");
     }
 }
