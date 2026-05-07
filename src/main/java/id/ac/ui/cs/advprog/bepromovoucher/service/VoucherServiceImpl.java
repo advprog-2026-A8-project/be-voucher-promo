@@ -20,6 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VoucherServiceImpl implements VoucherService {
 
+    private static final String VOUCHER_NOT_FOUND = "Voucher tidak ditemukan";
     private final VoucherRepository voucherRepository;
     private final VoucherMapper voucherMapper;
 

@@ -17,6 +17,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VoucherController {
 
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_VALID = "valid";
+
     private final VoucherService voucherService;
 
     @PostMapping("/admin/create")
@@ -42,8 +46,8 @@ public class VoucherController {
             return ResponseEntity.ok(voucherService.updateVoucherAdmin(code, addQuota, expiry, status));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
+                    KEY_SUCCESS, false,
+                    KEY_MESSAGE, e.getMessage()
             ));
         }
     }
@@ -62,14 +66,14 @@ public class VoucherController {
             Double discount = voucherService.calculateDiscount(code, amount);
 
             return ResponseEntity.ok(Map.of(
-                    "valid", true,
+                    KEY_VALID, true,
                     "discountAmount", discount,
                     "finalPrice", amount - discount
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "valid", false,
-                    "message", e.getMessage() != null ? e.getMessage() : "Unknown error"
+                    KEY_VALID, false,
+                    KEY_MESSAGE, e.getMessage() != null ? e.getMessage() : "Unknown error"
             ));
         }
     }
@@ -81,19 +85,19 @@ public class VoucherController {
             String code = request.get("code");
             if (code == null || code.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "Kode voucher wajib diisi"
+                        KEY_SUCCESS, false,
+                        KEY_MESSAGE, "Kode voucher wajib diisi"
                 ));
             }
             voucherService.useVoucher(code);
             return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Kuota voucher " + code + " berhasil dikurangi"
+                    KEY_SUCCESS, true,
+                    KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikurangi"
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
+                    KEY_SUCCESS, false,
+                    KEY_MESSAGE, e.getMessage()
             ));
         }
     }
