@@ -10,7 +10,7 @@ public class DiscountStrategyFactory {
             DiscountType.FIXED_AMOUNT, new FixedAmountDiscountStrategy()
     );
 
-    private DiscountStrategyFactory() {}
+    private DiscountStrategyFactory() { }
 
     public static DiscountStrategy getStrategy(DiscountType type) {
         DiscountStrategy strategy = STRATEGIES.get(type);

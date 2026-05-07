@@ -58,7 +58,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public Voucher validateAndGetVoucher(String code, Double purchaseAmount) {
         Voucher voucher = voucherRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
+                .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
 
         if (!voucher.isActive()) {
             throw new IllegalStateException("Voucher tidak aktif");
@@ -87,7 +87,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Transactional
     public void useVoucher(String code) {
         Voucher voucher = voucherRepository.findByCodeWithLock(code)
-                .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
+                .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
 
         if (voucher.getQuota() <= 0) {
             throw new IllegalStateException("Kuota voucher habis!");
@@ -106,7 +106,7 @@ public class VoucherServiceImpl implements VoucherService {
     public VoucherResponse updateVoucherAdmin(String code, Integer additionalQuota,
                                               LocalDateTime newExpiry, Boolean activeStatus) {
         Voucher voucher = voucherRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Voucher tidak ditemukan"));
+                .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
 
         if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("Tidak bisa mengubah voucher yang sudah kadaluwarsa");

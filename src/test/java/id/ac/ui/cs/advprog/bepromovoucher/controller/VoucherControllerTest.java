@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherRequest;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherResponse;
 import id.ac.ui.cs.advprog.bepromovoucher.enums.DiscountType;
-import id.ac.ui.cs.advprog.bepromovoucher.model.Voucher;
 import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
