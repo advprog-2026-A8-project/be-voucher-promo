@@ -98,6 +98,9 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/test/valid")
         public void triggerValidation(@Valid @RequestBody TestRequest request) {
+            // intentionally empty — this method exists solely to trigger
+            // @Valid validation. The exception is handled by
+            // GlobalExceptionHandler before this method body executes.
         }
     }
 
