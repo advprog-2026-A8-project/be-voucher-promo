@@ -1,8 +1,11 @@
 package id.ac.ui.cs.advprog.bepromovoucher.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.UpdateVoucherRequest;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.ValidateVoucherRequest;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherRequest;
-import id.ac.ui.cs.advprog.bepromovoucher.model.Voucher;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherResponse;
+import id.ac.ui.cs.advprog.bepromovoucher.enums.DiscountType;
 import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,10 +14,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,17 +35,34 @@ class VoucherControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private VoucherResponse buildVoucherResponse(String code) {
+        return VoucherResponse.builder()
+                .code(code)
+                .discountType(DiscountType.FIXED_AMOUNT)
+                .discountValue(50000.0)
+                .minPurchase(10000.0)
+                .quota(100)
+                .active(true)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .termsAndConditions("S&K berlaku")
+                .build();
+    }
+
     @Test
     void testCreateVoucherEndpoint() throws Exception {
         VoucherRequest request = new VoucherRequest();
         request.setCode("PROMO2026");
         request.setDiscountType("FIXED_AMOUNT");
+        request.setDiscountValue(50000.0);
+        request.setMinPurchase(10000.0);
+        request.setQuota(100);
+        request.setExpiryDate(LocalDateTime.now().plusDays(7));
+        request.setTermsAndConditions("S&K berlaku");
 
-        Voucher voucher = Voucher.builder().code("PROMO2026").build();
+        VoucherResponse response = buildVoucherResponse("PROMO2026");
+        when(voucherService.createVoucher(any(VoucherRequest.class))).thenReturn(response);
 
-        when(voucherService.createVoucher(any(VoucherRequest.class))).thenReturn(voucher);
-
-        mockMvc.perform(post("/api/vouchers/create")
+        mockMvc.perform(post("/api/vouchers/admin/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -49,11 +71,25 @@ class VoucherControllerTest {
 
     @Test
     void testListVouchersEndpoint() throws Exception {
-        when(voucherService.findAllVouchers()).thenReturn(Arrays.asList(new Voucher(), new Voucher()));
+        when(voucherService.findAllVouchers()).thenReturn(
+                Arrays.asList(buildVoucherResponse("V1"), buildVoucherResponse("V2"))
+        );
 
-        mockMvc.perform(get("/api/vouchers/list"))
+        mockMvc.perform(get("/api/vouchers/admin/list"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void testAvailableVouchersEndpoint() throws Exception {
+        when(voucherService.findAvailableVouchers()).thenReturn(
+                Arrays.asList(buildVoucherResponse("DISKON10"), buildVoucherResponse("DISKON20"))
+        );
+
+        mockMvc.perform(get("/api/vouchers/available"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].active").value(true));
     }
 
     @Test
@@ -62,10 +98,9 @@ class VoucherControllerTest {
         Double amount = 100000.0;
         Double discount = 50000.0;
 
-        java.util.Map<String, Object> requestBody = java.util.Map.of(
-                "code", code,
-                "amount", amount
-        );
+        ValidateVoucherRequest requestBody = new ValidateVoucherRequest();
+        requestBody.setCode(code);
+        requestBody.setAmount(amount);
 
         when(voucherService.calculateDiscount(code, amount)).thenReturn(discount);
 
@@ -79,24 +114,62 @@ class VoucherControllerTest {
     }
 
     @Test
-    void testValidateVoucherFailed() throws Exception {
-        String code = "KODE_SALAH";
-        Double amount = 50000.0;
-        String errorMessage = "Voucher tidak ditemukan!";
+    void testUseVoucherSuccess() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "DISKON50");
+        doNothing().when(voucherService).useVoucher("DISKON50");
 
-        java.util.Map<String, Object> requestBody = java.util.Map.of(
-                "code", code,
-                "amount", amount
-        );
+        mockMvc.perform(post("/api/vouchers/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Kuota voucher DISKON50 berhasil dikurangi"));
+    }
 
-        when(voucherService.calculateDiscount(code, amount))
-                .thenThrow(new RuntimeException(errorMessage));
+    @Test
+    void testUpdateByAdminSuccess() throws Exception {
+        VoucherResponse updated = buildVoucherResponse("DISKON50");
+        UpdateVoucherRequest request = new UpdateVoucherRequest();
+        request.setAdditionalQuota(50);
+        request.setIsActive(true);
 
-        mockMvc.perform(post("/api/vouchers/validate")
+        when(voucherService.updateVoucherAdmin("DISKON50", 50, null, true)).thenReturn(updated);
+
+        mockMvc.perform(patch("/api/vouchers/admin/update/DISKON50")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("DISKON50"));
+    }
+
+    @Test
+    void testUpdateByAdminWithNewExpiry() throws Exception {
+        LocalDateTime expiry = LocalDateTime.of(2027, 1, 1, 0, 0);
+        UpdateVoucherRequest request = new UpdateVoucherRequest();
+        request.setNewExpiry(expiry);
+
+        VoucherResponse updated = buildVoucherResponse("DISKON50");
+
+        when(voucherService.updateVoucherAdmin(eq("DISKON50"), isNull(), any(LocalDateTime.class), isNull()))
+                .thenReturn(updated);
+
+        mockMvc.perform(patch("/api/vouchers/admin/update/DISKON50")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("DISKON50"));
+    }
+
+    @Test
+    void testUseVoucherEmptyCode() throws Exception {
+        Map<String, String> requestBody = Map.of("code", "");
+
+        mockMvc.perform(post("/api/vouchers/use")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.valid").value(false))
-                .andExpect(jsonPath("$.message").value(errorMessage));
+                .andExpect(jsonPath("$.message").value("Kode voucher wajib diisi"));
+
+        verify(voucherService, never()).useVoucher(any());
     }
 }

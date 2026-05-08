@@ -1,11 +1,15 @@
 package id.ac.ui.cs.advprog.bepromovoucher.controller;
 
+import id.ac.ui.cs.advprog.bepromovoucher.dto.UpdateVoucherRequest;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.ValidateVoucherRequest;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherRequest;
-import id.ac.ui.cs.advprog.bepromovoucher.model.Voucher;
+import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherResponse;
 import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Map;
 
@@ -14,39 +18,69 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VoucherController {
 
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_VALID = "valid";
+
     private final VoucherService voucherService;
 
-    @PostMapping("/create")
-    public ResponseEntity<Voucher> create(@RequestBody VoucherRequest request) {
+    @PostMapping("/admin/create")
+    public ResponseEntity<VoucherResponse> create(@Valid @RequestBody VoucherRequest request) {
         return ResponseEntity.ok(voucherService.createVoucher(request));
     }
 
-    @GetMapping("/list")
-    public ResponseEntity<List<Voucher>> list() {
+    @GetMapping("/admin/list")
+    public ResponseEntity<List<VoucherResponse>> list() {
         return ResponseEntity.ok(voucherService.findAllVouchers());
     }
 
+    @PatchMapping("/admin/update/{code}")
+    public ResponseEntity<VoucherResponse> updateByAdmin(
+            @PathVariable String code,
+            @RequestBody UpdateVoucherRequest body) {
+
+        VoucherResponse response = voucherService.updateVoucherAdmin(
+                code,
+                body.getAdditionalQuota(),
+                body.getNewExpiry(),
+                body.getIsActive()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<VoucherResponse>> available() {
+        return ResponseEntity.ok(voucherService.findAvailableVouchers());
+    }
+
     @PostMapping("/validate")
-    public ResponseEntity<Map<String, Object>> validateVoucher(@RequestBody Map<String, Object> request) {
-        try {
-            String code = (String) request.get("code");
-            Double amount = Double.valueOf(request.get("amount").toString());
+    public ResponseEntity<Map<String, Object>> validateVoucher(
+            @Valid @RequestBody ValidateVoucherRequest request) {
 
-            Double discount = voucherService.calculateDiscount(code, amount);
+        String code = request.getCode();
+        Double amount = request.getAmount();
+        Double discount = voucherService.calculateDiscount(code, amount);
 
-            Map<String, Object> response = Map.of(
-                    "valid", true,
-                    "discountAmount", discount,
-                    "finalPrice", amount - discount
-            );
+        return ResponseEntity.ok(Map.of(
+                KEY_VALID, true,
+                "discountAmount", discount,
+                "finalPrice", amount - discount
+        ));
+    }
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = Map.of(
-                    "valid", false,
-                    "message", e.getMessage() != null ? e.getMessage() : "Unknown error"
-            );
-            return ResponseEntity.badRequest().body(errorResponse);
+    @PostMapping("/use")
+    public ResponseEntity<Map<String, Object>> useVoucher(
+            @RequestBody Map<String, String> request) {
+
+        String code = request.get("code");
+        if (code == null || code.trim().isEmpty()) {
+            throw new IllegalArgumentException("Kode voucher wajib diisi");
         }
+
+        voucherService.useVoucher(code);
+        return ResponseEntity.ok(Map.of(
+                KEY_SUCCESS, true,
+                KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikurangi"
+        ));
     }
 }
