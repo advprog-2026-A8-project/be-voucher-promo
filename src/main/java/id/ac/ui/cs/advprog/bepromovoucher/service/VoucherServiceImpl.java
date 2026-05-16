@@ -127,6 +127,16 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional
+    public void restoreVoucher(String code) {
+        Voucher voucher = voucherRepository.findByCodeWithLock(code)
+                .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
+
+        voucher.setQuota(voucher.getQuota() + 1);
+        voucherRepository.save(voucher);
+    }
+
+    @Override
+    @Transactional
     @Scheduled(cron = "0 0 0 * * *")
     public void deactivateExpiredVouchers() {
         log.info("Running scheduled job: deactivateExpiredVouchers at {}", LocalDateTime.now());
