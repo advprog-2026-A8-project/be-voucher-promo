@@ -1,7 +1,6 @@
 package id.ac.ui.cs.advprog.bepromovoucher.controller;
 
 import id.ac.ui.cs.advprog.bepromovoucher.dto.UpdateVoucherRequest;
-import id.ac.ui.cs.advprog.bepromovoucher.dto.ValidateVoucherRequest;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherRequest;
 import id.ac.ui.cs.advprog.bepromovoucher.dto.VoucherResponse;
 import id.ac.ui.cs.advprog.bepromovoucher.service.VoucherService;
@@ -88,5 +87,30 @@ public class VoucherController {
                 KEY_SUCCESS, true,
                 KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikurangi"
         ));
+    }
+
+    @PostMapping("/restore")
+    public ResponseEntity<Map<String, Object>> restoreVoucher(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestBody Map<String, String> request) {
+        try {
+            String code = request.get("code");
+            if (code == null || code.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        KEY_SUCCESS, false,
+                        KEY_MESSAGE, "Kode voucher wajib diisi"
+                ));
+            }
+            voucherService.restoreVoucher(code);
+            return ResponseEntity.ok(Map.of(
+                    KEY_SUCCESS, true,
+                    KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikembalikan"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    KEY_SUCCESS, false,
+                    KEY_MESSAGE, e.getMessage()
+            ));
+        }
     }
 }
