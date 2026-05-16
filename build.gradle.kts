@@ -80,3 +80,7 @@ tasks.withType<Checkstyle> {
         html.required.set(true)
     }
 }
+
+dependencyLocking {
+    lockAllConfigurations()
+}

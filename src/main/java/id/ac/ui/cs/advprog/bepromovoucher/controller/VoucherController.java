@@ -55,17 +55,23 @@ public class VoucherController {
 
     @PostMapping("/validate")
     public ResponseEntity<Map<String, Object>> validateVoucher(
-            @Valid @RequestBody ValidateVoucherRequest request) {
+            @RequestBody Map<String, Object> request) {
+        try {
+            String code = (String) request.get("code");
+            Double amount = Double.valueOf(request.get("amount").toString());
+            Double discount = voucherService.calculateDiscount(code, amount);
 
-        String code = request.getCode();
-        Double amount = request.getAmount();
-        Double discount = voucherService.calculateDiscount(code, amount);
-
-        return ResponseEntity.ok(Map.of(
-                KEY_VALID, true,
-                "discountAmount", discount,
-                "finalPrice", amount - discount
-        ));
+            return ResponseEntity.ok(Map.of(
+                    KEY_VALID, true,
+                    "discountAmount", discount,
+                    "finalAmount", amount - discount
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    KEY_VALID, false,
+                    KEY_MESSAGE, e.getMessage() != null ? e.getMessage() : "Unknown error"
+            ));
+        }
     }
 
     @PostMapping("/use")
