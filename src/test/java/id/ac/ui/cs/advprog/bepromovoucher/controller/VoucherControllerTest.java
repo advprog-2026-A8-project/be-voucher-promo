@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -53,7 +54,11 @@ class VoucherControllerTest {
                 .build();
     }
 
+    // ===== Admin endpoints =====
+
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN") karena @PreAuthorize aktif
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testCreateVoucherEndpoint() throws Exception {
         VoucherRequest request = new VoucherRequest();
         request.setCode("PROMO2026");
@@ -74,7 +79,9 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.code").value("PROMO2026"));
     }
 
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN")
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testListVouchersEndpoint() throws Exception {
         when(voucherService.findAllVouchers()).thenReturn(
                 Arrays.asList(buildVoucherResponse("V1"), buildVoucherResponse("V2"))
@@ -85,7 +92,9 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN")
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testUpdateByAdminSuccess() throws Exception {
         VoucherResponse updated = buildVoucherResponse("DISKON50");
         UpdateVoucherRequest request = new UpdateVoucherRequest();
@@ -102,7 +111,9 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.code").value("DISKON50"));
     }
 
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN")
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testUpdateByAdminWithNewExpiry() throws Exception {
         LocalDateTime expiry = LocalDateTime.of(2027, 1, 1, 0, 0);
         UpdateVoucherRequest request = new UpdateVoucherRequest();
@@ -120,7 +131,9 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.code").value("DISKON50"));
     }
 
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN")
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testUpdateByAdminVoucherExpiredThrows() throws Exception {
         UpdateVoucherRequest request = new UpdateVoucherRequest();
         request.setAdditionalQuota(10);
@@ -137,7 +150,9 @@ class VoucherControllerTest {
                         "Tidak bisa mengubah voucher yang sudah kadaluwarsa"));
     }
 
+    // UPDATE: tambah @WithMockUser(roles = "ADMIN")
     @Test
+    @WithMockUser(roles = "ADMIN")
     void testUpdateByAdminVoucherNotFound() throws Exception {
         UpdateVoucherRequest request = new UpdateVoucherRequest();
         request.setAdditionalQuota(10);
@@ -151,6 +166,23 @@ class VoucherControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Voucher tidak ditemukan"));
     }
+
+    // UPDATE: test baru — user biasa tidak bisa akses admin endpoint
+    @Test
+    @WithMockUser(roles = "USER")
+    void testAdminEndpointWithUserRoleReturnsForbidden() throws Exception {
+        mockMvc.perform(get("/api/vouchers/admin/list"))
+                .andExpect(status().isForbidden());
+    }
+
+    // UPDATE: test baru — tanpa auth tidak bisa akses admin endpoint
+    @Test
+    void testAdminEndpointWithoutAuthReturnsForbidden() throws Exception {
+        mockMvc.perform(get("/api/vouchers/admin/list"))
+                .andExpect(status().isForbidden());
+    }
+
+    // ===== Available endpoint =====
 
     @Test
     void testAvailableVouchersEndpoint() throws Exception {
@@ -173,6 +205,7 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    // ===== Validate endpoint =====
 
     @Test
     void testValidateVoucherSuccess() throws Exception {
@@ -210,6 +243,8 @@ class VoucherControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Voucher tidak ditemukan"));
     }
+
+    // ===== Use endpoint =====
 
     @Test
     void testUseVoucherSuccess() throws Exception {
@@ -277,12 +312,20 @@ class VoucherControllerTest {
                 .andExpect(jsonPath("$.message").value("Kuota voucher habis!"));
     }
 
+    // ===== Restore endpoint =====
+
+    // UPDATE: restoreVoucher sekarang butuh Idempotency-Key header
+    // dan return String bukan void
     @Test
     void testRestoreVoucherSuccess() throws Exception {
+        String idempotencyKey = "order-123-restore";
         Map<String, String> requestBody = Map.of("code", "DISKON50");
-        doNothing().when(voucherService).restoreVoucher("DISKON50");
+
+        when(voucherService.restoreVoucher("DISKON50", idempotencyKey))
+                .thenReturn("Kuota voucher DISKON50 berhasil dikembalikan");
 
         mockMvc.perform(post("/api/vouchers/restore")
+                        .header("Idempotency-Key", idempotencyKey)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isOk())
@@ -291,26 +334,64 @@ class VoucherControllerTest {
                         "Kuota voucher DISKON50 berhasil dikembalikan"));
     }
 
+    // UPDATE: idempotent request — key sama dipanggil dua kali
+    // response tetap sama tanpa memproses ulang
+    @Test
+    void testRestoreVoucherIdempotentReturnsSameResponse() throws Exception {
+        String idempotencyKey = "order-123-restore";
+        Map<String, String> requestBody = Map.of("code", "DISKON50");
+        String expectedMessage = "Kuota voucher DISKON50 berhasil dikembalikan";
+
+        when(voucherService.restoreVoucher("DISKON50", idempotencyKey))
+                .thenReturn(expectedMessage);
+
+        // panggil pertama
+        mockMvc.perform(post("/api/vouchers/restore")
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(expectedMessage));
+
+        // panggil kedua dengan key yang sama — response sama
+        mockMvc.perform(post("/api/vouchers/restore")
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(expectedMessage));
+
+        // service hanya dipanggil sesuai jumlah request
+        // idempotency logic ada di service layer
+        verify(voucherService, times(2)).restoreVoucher("DISKON50", idempotencyKey);
+    }
+
+    // UPDATE: code kosong → 400
     @Test
     void testRestoreVoucherEmptyCode() throws Exception {
         Map<String, String> requestBody = Map.of("code", "");
 
         mockMvc.perform(post("/api/vouchers/restore")
+                        .header("Idempotency-Key", "some-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Kode voucher wajib diisi"));
 
-        verify(voucherService, never()).restoreVoucher(any());
+        verify(voucherService, never()).restoreVoucher(any(), any());
     }
 
+    // UPDATE: voucher tidak ditemukan → 400
     @Test
     void testRestoreVoucherNotFound() throws Exception {
+        String idempotencyKey = "order-999-restore";
         Map<String, String> requestBody = Map.of("code", "INVALID");
+
         doThrow(new IllegalArgumentException("Voucher tidak ditemukan"))
-                .when(voucherService).restoreVoucher("INVALID");
+                .when(voucherService).restoreVoucher("INVALID", idempotencyKey);
 
         mockMvc.perform(post("/api/vouchers/restore")
+                        .header("Idempotency-Key", idempotencyKey)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isBadRequest())

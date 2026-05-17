@@ -14,7 +14,9 @@ public interface VoucherService {
     Voucher validateAndGetVoucher(String code, Double purchaseAmount);
     Double calculateDiscount(String code, Double purchaseAmount);
     void useVoucher(String code);
-    void restoreVoucher(String code);
+
+    String restoreVoucher(String code, String idempotencyKey);
+
     VoucherResponse updateVoucherAdmin(String code, Integer additionalQuota,
                                        LocalDateTime newExpiry, Boolean activeStatus);
     void deactivateExpiredVouchers();
