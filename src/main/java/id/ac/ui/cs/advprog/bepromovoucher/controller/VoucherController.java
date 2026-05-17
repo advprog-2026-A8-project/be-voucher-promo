@@ -25,16 +25,19 @@ public class VoucherController {
     private final VoucherService voucherService;
 
     @PostMapping("/admin/create")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<VoucherResponse> create(@Valid @RequestBody VoucherRequest request) {
         return ResponseEntity.ok(voucherService.createVoucher(request));
     }
 
     @GetMapping("/admin/list")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<VoucherResponse>> list() {
         return ResponseEntity.ok(voucherService.findAllVouchers());
     }
 
     @PatchMapping("/admin/update/{code}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<VoucherResponse> updateByAdmin(
             @PathVariable String code,
             @RequestBody UpdateVoucherRequest body) {
