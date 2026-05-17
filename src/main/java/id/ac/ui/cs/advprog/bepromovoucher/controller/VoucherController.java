@@ -96,7 +96,7 @@ public class VoucherController {
 
     @PostMapping("/restore")
     public ResponseEntity<Map<String, Object>> restoreVoucher(
-            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
             @RequestBody Map<String, String> request) {
 
         String code = request.get("code");
@@ -104,10 +104,10 @@ public class VoucherController {
             throw new IllegalArgumentException("Kode voucher wajib diisi");
         }
 
-        voucherService.restoreVoucher(code);
+        String message = voucherService.restoreVoucher(code, idempotencyKey);
         return ResponseEntity.ok(Map.of(
                 KEY_SUCCESS, true,
-                KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikembalikan"
+                KEY_MESSAGE, message
         ));
     }
 }
