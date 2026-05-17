@@ -119,12 +119,12 @@ public class VoucherServiceImpl implements VoucherService {
         voucherRepository.save(voucher);
 
         String responseMessage = "Kuota voucher " + code + " berhasil dikembalikan";
-        IdempotencyRecord record = IdempotencyRecord.builder()
+        IdempotencyRecord idempotencyRecord = IdempotencyRecord.builder()
                 .idempotencyKey(idempotencyKey)
                 .voucherCode(code)
                 .responseMessage(responseMessage)
                 .build();
-        idempotencyRepository.save(record);
+        idempotencyRepository.save(idempotencyRecord);
 
         log.info("Voucher {} restored with idempotency key: {}", code, idempotencyKey);
         return responseMessage;
