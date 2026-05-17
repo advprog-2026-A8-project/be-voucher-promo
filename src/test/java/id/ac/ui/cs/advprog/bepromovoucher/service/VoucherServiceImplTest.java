@@ -364,4 +364,28 @@ class VoucherServiceImplTest {
 
         verify(voucherRepository, times(1)).deactivateExpiredVouchers(any(LocalDateTime.class));
     }
+
+    @Test
+    void testRestoreVoucherSuccess() {
+        when(voucherRepository.findByCodeWithLock("DISKON50"))
+                .thenReturn(java.util.Optional.of(voucher));
+        when(voucherRepository.save(any(Voucher.class))).thenReturn(voucher);
+
+        assertDoesNotThrow(() -> voucherService.restoreVoucher("DISKON50"));
+
+        assertEquals(101, voucher.getQuota()); // quota 100 + 1
+        verify(voucherRepository, times(1)).save(voucher);
+    }
+
+    @Test
+    void testRestoreVoucherNotFound() {
+        when(voucherRepository.findByCodeWithLock("INVALID"))
+                .thenReturn(java.util.Optional.empty());
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+                voucherService.restoreVoucher("INVALID"));
+
+        assertEquals("Voucher tidak ditemukan", exception.getMessage());
+        verify(voucherRepository, never()).save(any());
+    }
 }
