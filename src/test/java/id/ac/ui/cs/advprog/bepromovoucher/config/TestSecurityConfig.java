@@ -66,9 +66,13 @@ public class TestSecurityConfig {
                                 "/api/vouchers/available",
                                 "/api/vouchers/validate",
                                 "/api/vouchers/use",
-                                "/api/vouchers/restore"
+                                "/api/vouchers/restore",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
                         ).permitAll()
-                        .requestMatchers("/api/vouchers/admin/**").authenticated()
+
+                        .requestMatchers("/api/vouchers/admin/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
