@@ -163,7 +163,7 @@ class VoucherControllerTest {
     @WithMockUser(roles = "USER")
     void testAdminEndpointWithUserRoleReturnsForbidden() throws Exception {
         mockMvc.perform(get("/api/vouchers/admin/list"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
     }
 
     @Test

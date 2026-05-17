@@ -21,6 +21,7 @@ public class VoucherController {
     private static final String KEY_SUCCESS = "success";
     private static final String KEY_MESSAGE = "message";
     private static final String KEY_VALID = "valid";
+    private static final String KEY_AMOUNT = "amount";
 
     private final VoucherService voucherService;
 
@@ -63,12 +64,12 @@ public class VoucherController {
         if (!request.containsKey("code") || request.get("code") == null) {
             throw new IllegalArgumentException("Kode voucher wajib diisi");
         }
-        if (!request.containsKey("amount") || request.get("amount") == null) {
+        if (!request.containsKey(KEY_AMOUNT) || request.get(KEY_AMOUNT) == null) {
             throw new IllegalArgumentException("Jumlah pembelian wajib diisi");
         }
 
         String code = request.get("code").toString();
-        Double amount = Double.valueOf(request.get("amount").toString());
+        Double amount = Double.valueOf(request.get(KEY_AMOUNT).toString());
         Double discount = voucherService.calculateDiscount(code, amount);
 
         return ResponseEntity.ok(Map.of(

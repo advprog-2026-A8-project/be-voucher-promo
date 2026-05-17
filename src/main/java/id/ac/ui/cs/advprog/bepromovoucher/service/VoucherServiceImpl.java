@@ -66,7 +66,6 @@ public class VoucherServiceImpl implements VoucherService {
     public Voucher validateAndGetVoucher(String code, Double purchaseAmount) {
         Voucher voucher = voucherRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
-
         if (!voucher.isActive()) {
             throw new IllegalStateException("Voucher tidak aktif");
         }
@@ -79,7 +78,6 @@ public class VoucherServiceImpl implements VoucherService {
         if (purchaseAmount < voucher.getMinPurchase()) {
             throw new IllegalStateException("Minimal pembelian tidak terpenuhi");
         }
-
         return voucher;
     }
 
@@ -95,14 +93,12 @@ public class VoucherServiceImpl implements VoucherService {
     public void useVoucher(String code) {
         Voucher voucher = voucherRepository.findByCodeWithLock(code)
                 .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
-
         if (voucher.getQuota() <= 0) {
             throw new IllegalStateException("Kuota voucher habis!");
         }
         if (!voucher.isActive() || voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("Voucher sudah tidak valid");
         }
-
         voucher.setQuota(voucher.getQuota() - 1);
         voucherRepository.save(voucher);
     }
@@ -110,17 +106,15 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     @Transactional
     public String restoreVoucher(String code, String idempotencyKey) {
-        Optional<IdempotencyRecord> existing =
+        Optional<IdempotencyRecord> existingRecord =
                 idempotencyRepository.findByIdempotencyKey(idempotencyKey);
-
-        if (existing.isPresent()) {
+        if (existingRecord.isPresent()) {
             log.info("Idempotent restore request detected for key: {}", idempotencyKey);
-            return existing.get().getResponseMessage();
+            return existingRecord.get().getResponseMessage();
         }
 
         Voucher voucher = voucherRepository.findByCodeWithLock(code)
                 .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
-
         voucher.setQuota(voucher.getQuota() + 1);
         voucherRepository.save(voucher);
 
@@ -142,7 +136,6 @@ public class VoucherServiceImpl implements VoucherService {
                                               LocalDateTime newExpiry, Boolean activeStatus) {
         Voucher voucher = voucherRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException(VOUCHER_NOT_FOUND));
-
         if (voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("Tidak bisa mengubah voucher yang sudah kadaluwarsa");
         }
@@ -155,7 +148,6 @@ public class VoucherServiceImpl implements VoucherService {
         if (activeStatus != null) {
             voucher.setActive(activeStatus);
         }
-
         return voucherMapper.toResponse(voucherRepository.save(voucher));
     }
 

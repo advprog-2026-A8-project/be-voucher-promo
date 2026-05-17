@@ -25,7 +25,6 @@ import java.util.Locale;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_ROLE = "ADMIN";
-    private static final String ADMIN_PATH_PREFIX = "/api/vouchers/admin";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtUtil jwtUtil;
@@ -34,11 +33,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Value("${app.security.disable-filter:false}")
     private boolean disableFilter;
 
+    @Value("${app.security.admin-path-prefix:/api/vouchers/admin}")
+    private String adminPathPrefix;
+
     private List<SimpleGrantedAuthority> toAuthorities(String role) {
         if (role == null || role.isBlank()) {
             return Collections.emptyList();
         }
-
         String normalized = role.trim().toUpperCase(Locale.ROOT);
         return List.of(new SimpleGrantedAuthority("ROLE_" + normalized));
     }
@@ -55,7 +56,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String path = request.getRequestURI();
-
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
@@ -71,13 +71,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(username, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-
                     log.debug("Authenticated user: {} with role: {}", username, role);
                 }
             }
         }
 
-        if (path.startsWith(ADMIN_PATH_PREFIX)) {
+        if (path.startsWith(adminPathPrefix)) {
             var auth = SecurityContextHolder.getContext().getAuthentication();
 
             if (auth == null || auth.getAuthorities().stream()
