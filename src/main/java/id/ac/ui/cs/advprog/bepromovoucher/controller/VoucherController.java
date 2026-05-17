@@ -55,22 +55,23 @@ public class VoucherController {
     @PostMapping("/validate")
     public ResponseEntity<Map<String, Object>> validateVoucher(
             @RequestBody Map<String, Object> request) {
-        try {
-            String code = (String) request.get("code");
-            Double amount = Double.valueOf(request.get("amount").toString());
-            Double discount = voucherService.calculateDiscount(code, amount);
 
-            return ResponseEntity.ok(Map.of(
-                    KEY_VALID, true,
-                    "discountAmount", discount,
-                    "finalAmount", amount - discount
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    KEY_VALID, false,
-                    KEY_MESSAGE, e.getMessage() != null ? e.getMessage() : "Unknown error"
-            ));
+        if (!request.containsKey("code") || request.get("code") == null) {
+            throw new IllegalArgumentException("Kode voucher wajib diisi");
         }
+        if (!request.containsKey("amount") || request.get("amount") == null) {
+            throw new IllegalArgumentException("Jumlah pembelian wajib diisi");
+        }
+
+        String code = request.get("code").toString();
+        Double amount = Double.valueOf(request.get("amount").toString());
+        Double discount = voucherService.calculateDiscount(code, amount);
+
+        return ResponseEntity.ok(Map.of(
+                KEY_VALID, true,
+                "discountAmount", discount,
+                "finalAmount", amount - discount
+        ));
     }
 
     @PostMapping("/use")
@@ -93,24 +94,16 @@ public class VoucherController {
     public ResponseEntity<Map<String, Object>> restoreVoucher(
             @RequestHeader(value = "X-User-Role", required = false) String userRole,
             @RequestBody Map<String, String> request) {
-        try {
-            String code = request.get("code");
-            if (code == null || code.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        KEY_SUCCESS, false,
-                        KEY_MESSAGE, "Kode voucher wajib diisi"
-                ));
-            }
-            voucherService.restoreVoucher(code);
-            return ResponseEntity.ok(Map.of(
-                    KEY_SUCCESS, true,
-                    KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikembalikan"
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    KEY_SUCCESS, false,
-                    KEY_MESSAGE, e.getMessage()
-            ));
+
+        String code = request.get("code");
+        if (code == null || code.trim().isEmpty()) {
+            throw new IllegalArgumentException("Kode voucher wajib diisi");
         }
+
+        voucherService.restoreVoucher(code);
+        return ResponseEntity.ok(Map.of(
+                KEY_SUCCESS, true,
+                KEY_MESSAGE, "Kuota voucher " + code + " berhasil dikembalikan"
+        ));
     }
 }

@@ -68,6 +68,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testCompileOnly ("org.projectlombok:lombok")
     testAnnotationProcessor ("org.projectlombok:lombok")
+    testImplementation ("org.springframework.security:spring-security-test")
 }
 
 checkstyle {
