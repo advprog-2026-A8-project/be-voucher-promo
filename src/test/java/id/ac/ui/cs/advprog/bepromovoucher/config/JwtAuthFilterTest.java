@@ -1,7 +1,6 @@
 package id.ac.ui.cs.advprog.bepromovoucher.config;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +11,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,7 +23,6 @@ class JwtAuthFilterTest {
 
     private static final String SECRET =
             "TestSecretKeyUntukIntegrationTestYangCukupPanjang123!@#";
-    private static final String ADMIN_PREFIX = "/api/vouchers/admin";
 
     @BeforeEach
     void setUp() {
@@ -32,8 +30,6 @@ class JwtAuthFilterTest {
         ReflectionTestUtils.setField(jwtUtil, "secret", SECRET);
 
         jwtAuthFilter = new JwtAuthFilter(jwtUtil);
-
-        ReflectionTestUtils.setField(jwtAuthFilter, "adminPathPrefix", ADMIN_PREFIX);
         ReflectionTestUtils.setField(jwtAuthFilter, "disableFilter", false);
 
         SecurityContextHolder.clearContext();
@@ -45,39 +41,23 @@ class JwtAuthFilterTest {
     }
 
     private String generateToken(String username, String role, boolean expired) {
-        Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes());
         long expiration = expired ? -10000L : 86400000L;
 
         var builder = Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis() - 20000L))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration));
+                .subject(username)
+                .issuedAt(new Date(System.currentTimeMillis() - 20000L))
+                .expiration(new Date(System.currentTimeMillis() + expiration));
 
         if (role != null) {
             builder.claim("role", role);
         }
 
-        return builder.signWith(key, SignatureAlgorithm.HS256).compact();
+        return builder.signWith(key).compact();
     }
 
     @Test
-    void testAdminEndpointWithValidAdminJwtAllowed() throws Exception {
-        String token = generateToken("adminUser", "ADMIN", false);
-
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/vouchers/admin/list");
-        request.addHeader("Authorization", "Bearer " + token);
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
-
-        jwtAuthFilter.doFilterInternal(request, response, chain);
-
-        assertEquals(200, response.getStatus());
-    }
-
-    @Test
-    void testAdminEndpointSetsSecurityContext() throws Exception {
+    void testFilterSetsSecurityContextWithValidAdminJwt() throws Exception {
         String token = generateToken("adminUser", "ADMIN", false);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -90,15 +70,34 @@ class JwtAuthFilterTest {
         jwtAuthFilter.doFilterInternal(request, response, chain);
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals("adminUser",
-                SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals("adminUser", SecurityContextHolder.getContext().getAuthentication().getName());
         assertTrue(SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
     }
 
     @Test
-    void testAdminEndpointWithoutTokenReturnsForbidden() throws Exception {
+    void testFilterSetsSecurityContextWithValidUserJwt() throws Exception {
+        String token = generateToken("regularUser", "USER", false);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/vouchers/use");
+        request.addHeader("Authorization", "Bearer " + token);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        jwtAuthFilter.doFilterInternal(request, response, chain);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("regularUser", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_USER")));
+    }
+
+    @Test
+    void testFilterLeavesContextNullWhenNoTokenProvided() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/vouchers/admin/list");
 
@@ -107,28 +106,11 @@ class JwtAuthFilterTest {
 
         jwtAuthFilter.doFilterInternal(request, response, chain);
 
-        assertEquals(403, response.getStatus());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void testAdminEndpointWithUserRoleReturnsForbidden() throws Exception {
-        String token = generateToken("regularUser", "USER", false);
-
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/vouchers/admin/create");
-        request.addHeader("Authorization", "Bearer " + token);
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
-
-        jwtAuthFilter.doFilterInternal(request, response, chain);
-
-        assertEquals(403, response.getStatus());
-    }
-
-    @Test
-    void testAdminEndpointWithExpiredTokenReturnsForbidden() throws Exception {
+    void testFilterLeavesContextNullWhenTokenExpired() throws Exception {
         String token = generateToken("adminUser", "ADMIN", true);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -138,20 +120,13 @@ class JwtAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
 
-        try {
-            jwtAuthFilter.doFilterInternal(request, response, chain);
-        } catch (Exception e) {
-            SecurityContextHolder.clearContext();
-            if (response.getStatus() == 200) {
-                response.setStatus(403);
-            }
-        }
+        jwtAuthFilter.doFilterInternal(request, response, chain);
 
-        assertEquals(403, response.getStatus());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void testAdminEndpointWithInvalidTokenReturnsForbidden() throws Exception {
+    void testFilterLeavesContextNullWhenTokenInvalid() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/vouchers/admin/create");
         request.addHeader("Authorization", "Bearer invalid.token.here");
@@ -159,21 +134,13 @@ class JwtAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
 
-        try {
-            jwtAuthFilter.doFilterInternal(request, response, chain);
-        } catch (Exception e) {
-            SecurityContextHolder.clearContext();
-            if (response.getStatus() == 200) {
-                response.setStatus(403);
-            }
-        }
+        jwtAuthFilter.doFilterInternal(request, response, chain);
 
-        assertEquals(403, response.getStatus());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void testAdminEndpointWithNonBearerAuthReturnsForbidden() throws Exception {
+    void testFilterLeavesContextNullWhenNonBearerAuthProvided() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/vouchers/admin/list");
         request.addHeader("Authorization", "Basic dXNlcjpwYXNz");
@@ -183,28 +150,16 @@ class JwtAuthFilterTest {
 
         jwtAuthFilter.doFilterInternal(request, response, chain);
 
-        assertEquals(403, response.getStatus());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void testPublicEndpointWithoutTokenAllowed() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/vouchers/available");
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
-
-        jwtAuthFilter.doFilterInternal(request, response, chain);
-
-        assertEquals(200, response.getStatus());
-    }
-
-    @Test
-    void testPublicEndpointWithTokenStillAllowed() throws Exception {
-        String token = generateToken("anyUser", "USER", false);
+    void testDisableFilterSkipsTokenProcessing() throws Exception {
+        jwtAuthFilter.setDisableFilter(true);
+        String token = generateToken("adminUser", "ADMIN", false);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/vouchers/validate");
+        request.setRequestURI("/api/vouchers/admin/list");
         request.addHeader("Authorization", "Bearer " + token);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -212,21 +167,6 @@ class JwtAuthFilterTest {
 
         jwtAuthFilter.doFilterInternal(request, response, chain);
 
-        assertEquals(200, response.getStatus());
-    }
-
-    @Test
-    void testDisableFilterSkipsAllChecks() throws Exception {
-        jwtAuthFilter.setDisableFilter(true);
-
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/vouchers/admin/list");
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
-
-        jwtAuthFilter.doFilterInternal(request, response, chain);
-
-        assertEquals(200, response.getStatus());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 }

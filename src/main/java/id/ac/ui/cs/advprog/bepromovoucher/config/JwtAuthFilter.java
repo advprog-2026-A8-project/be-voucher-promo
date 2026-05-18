@@ -24,7 +24,6 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private static final String ADMIN_ROLE = "ADMIN";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtUtil jwtUtil;
@@ -32,9 +31,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Setter
     @Value("${app.security.disable-filter:false}")
     private boolean disableFilter;
-
-    @Value("${app.security.admin-path-prefix:/api/vouchers/admin}")
-    private String adminPathPrefix;
 
     private List<SimpleGrantedAuthority> toAuthorities(String role) {
         if (role == null || role.isBlank()) {
@@ -55,44 +51,31 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String path = request.getRequestURI();
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length());
 
-            if (jwtUtil.validateToken(token)) {
-                String username = jwtUtil.extractUsername(token);
-                String role = jwtUtil.extractRole(token);
+            try {
+                if (jwtUtil.validateToken(token)) {
+                    String username = jwtUtil.extractUsername(token);
+                    String role = jwtUtil.extractRole(token);
 
-                List<SimpleGrantedAuthority> authorities = toAuthorities(role);
+                    List<SimpleGrantedAuthority> authorities = toAuthorities(role);
 
-                if (!authorities.isEmpty()) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(username, null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    log.debug("Authenticated user: {} with role: {}", username, role);
+                    if (!authorities.isEmpty()) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(username, null, authorities);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        log.debug("Authenticated user: {} with role: {}", username, role);
+                    }
                 }
-            }
-        }
-
-        if (path.startsWith(adminPathPrefix)) {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-
-            if (auth == null || auth.getAuthorities().stream()
-                    .noneMatch(grantedAuthority ->
-                            grantedAuthority.getAuthority().equals("ROLE_" + ADMIN_ROLE))) {
-                sendForbidden(response, "Akses ditolak: hanya admin yang diizinkan");
-                return;
+            } catch (Exception e) {
+                log.error("Failed to process JWT token: {}", e.getMessage());
+                SecurityContextHolder.clearContext();
             }
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private void sendForbidden(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
-        response.getWriter().write("{\"message\": \"" + message + "\"}");
     }
 }

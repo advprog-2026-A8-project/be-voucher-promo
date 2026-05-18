@@ -1,13 +1,12 @@
 package id.ac.ui.cs.advprog.bepromovoucher.config;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,19 +25,19 @@ class JwtUtilTest {
     }
 
     private String generateToken(String username, String role, boolean expired) {
-        Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
-        long expiration = expired ? -1000L : 86400000L;
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes());
+        long expiration = expired ? -10000L : 86400000L;
 
         var builder = Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration));
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration));
 
         if (role != null) {
             builder.claim("role", role);
         }
 
-        return builder.signWith(key, SignatureAlgorithm.HS256).compact();
+        return builder.signWith(key).compact();
     }
 
     @Test
