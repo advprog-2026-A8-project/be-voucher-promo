@@ -49,30 +49,34 @@ repositories {
 }
 
 dependencies {
-    // Production
+
+    val jjwtVersion = "0.12.6"
+
+    // All Implementation Dependencies
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    runtimeOnly("org.postgresql:postgresql")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
 
-    implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
+    // All RuntimeOnly Dependencies
+    runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jjwtVersion")
 
-    // Tools & Lombok
+    // CompileOnly & Annotation Processors (Tools & Lombok)
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
-    // Testing
+    // Test Dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
+    testImplementation("org.springframework.security:spring-security-test")
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testCompileOnly ("org.projectlombok:lombok")
-    testAnnotationProcessor ("org.projectlombok:lombok")
-    testImplementation ("org.springframework.security:spring-security-test")
 }
 
 checkstyle {
