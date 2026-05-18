@@ -22,7 +22,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**", "/swagger-ui/**", "/v3/api-docs/**")
+                        .requireCsrfProtectionMatcher(request -> false)
                 )
 
                 .sessionManagement(session ->

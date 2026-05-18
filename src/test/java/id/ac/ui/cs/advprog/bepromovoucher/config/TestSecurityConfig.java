@@ -58,7 +58,7 @@ public class TestSecurityConfig {
                                                JwtAuthFilter jwtAuthFilter) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**", "/swagger-ui/**", "/v3/api-docs/**")
+                        .requireCsrfProtectionMatcher(request -> false)
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
