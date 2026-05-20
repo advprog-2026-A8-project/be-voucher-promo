@@ -12,7 +12,6 @@ import id.ac.ui.cs.advprog.bepromovoucher.strategy.DiscountStrategy;
 import id.ac.ui.cs.advprog.bepromovoucher.strategy.DiscountStrategyFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -153,10 +152,9 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional
-    @Scheduled(cron = "0 0 0 * * *")
     public void deactivateExpiredVouchers() {
-        log.info("Running scheduled job: deactivateExpiredVouchers at {}", LocalDateTime.now());
+        log.info("Deactivating expired vouchers at {}", LocalDateTime.now());
         voucherRepository.deactivateExpiredVouchers(LocalDateTime.now());
-        log.info("Scheduled job deactivateExpiredVouchers completed");
+        log.info("Expired vouchers deactivated successfully.");
     }
 }
