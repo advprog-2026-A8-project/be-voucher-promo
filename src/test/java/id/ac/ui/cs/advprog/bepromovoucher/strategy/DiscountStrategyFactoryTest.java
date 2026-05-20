@@ -54,4 +54,11 @@ class DiscountStrategyFactoryTest {
 
         assertSame(first, second);
     }
+
+    @Test
+    void testGetStrategyUnknownThrowsException() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> DiscountStrategyFactory.getStrategy(DiscountType.UNKNOWN));
+        assertTrue(exception.getMessage().contains("UNKNOWN"));
+    }
 }
