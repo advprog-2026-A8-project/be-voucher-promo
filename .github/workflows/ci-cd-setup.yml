@@ -156,6 +156,7 @@ jobs:
               --name=${{ env.CONTAINER_NAME }} \
               --network=app_network \
               -p ${{ env.APP_PORT }}:8080 \
+              -e SERVER_PORT=8080 \
               -e POSTGRES_HOST=${{ env.DB_CONTAINER_NAME }} \
               -e POSTGRES_PORT=5432 \
               -e POSTGRES_DB=${{ env.DB_NAME }} \
