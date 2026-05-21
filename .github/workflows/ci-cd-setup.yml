@@ -1,3 +1,5 @@
+name: CI/CD Pipeline
+
 on:
   push:
     branches: [ "staging", "main", "feat/cicd-setup" ]
@@ -101,17 +103,27 @@ jobs:
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          REMOTE_DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          REMOTE_DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          REMOTE_POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          REMOTE_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REMOTE_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REMOTE_JWT_EXPIRATION: ${{ secrets.JWT_EXPIRATION }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          envs: REMOTE_DOCKER_HUB_USERNAME,REMOTE_DOCKER_HUB_ACCESS_TOKEN,REMOTE_POSTGRES_USER,REMOTE_POSTGRES_PASSWORD,REMOTE_JWT_SECRET,REMOTE_JWT_EXPIRATION
           script: |
+            set -euo pipefail
+
             # Stop old app container
             docker stop ${{ env.CONTAINER_NAME }} || true
             docker rm ${{ env.CONTAINER_NAME }} || true
 
             # Login Docker di server
-            echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+            echo "$REMOTE_DOCKER_HUB_ACCESS_TOKEN" | docker login -u "$REMOTE_DOCKER_HUB_USERNAME" --password-stdin
 
             # Pull image terbaru
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_HUB_REPO_NAME }}:${{ env.IMAGE_TAG }}
@@ -133,8 +145,8 @@ jobs:
                 -p ${{ env.DB_PORT }}:5432 \
                 -v ${{ env.DB_VOLUME }}:/var/lib/postgresql/data \
                 -e POSTGRES_DB=${{ env.DB_NAME }} \
-                -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
-                -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+                -e POSTGRES_USER="$REMOTE_POSTGRES_USER" \
+                -e POSTGRES_PASSWORD="$REMOTE_POSTGRES_PASSWORD" \
                 --restart always \
                 postgres:15-alpine
             fi
@@ -147,11 +159,12 @@ jobs:
               -e POSTGRES_HOST=${{ env.DB_CONTAINER_NAME }} \
               -e POSTGRES_PORT=5432 \
               -e POSTGRES_DB=${{ env.DB_NAME }} \
-              -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
-              -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+              -e POSTGRES_USER="$REMOTE_POSTGRES_USER" \
+              -e POSTGRES_PASSWORD="$REMOTE_POSTGRES_PASSWORD" \
+              -e JWT_SECRET="$REMOTE_JWT_SECRET" \
+              -e JWT_EXPIRATION="$REMOTE_JWT_EXPIRATION" \
               -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \
               --restart always \
               ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_HUB_REPO_NAME }}:${{ env.IMAGE_TAG }}
 
             docker ps
-          
