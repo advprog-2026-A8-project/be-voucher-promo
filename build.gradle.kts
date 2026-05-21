@@ -49,20 +49,33 @@ repositories {
 }
 
 dependencies {
-    // Production
+
+    val jjwtVersion = "0.12.6"
+
+    // All Implementation Dependencies
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
 
-    // Tools & Lombok
+    // All RuntimeOnly Dependencies
+    runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jjwtVersion")
+
+    // CompileOnly & Annotation Processors (Tools & Lombok)
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
-    // Testing
+    // Test Dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
+    testImplementation("org.springframework.security:spring-security-test")
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -76,4 +89,8 @@ tasks.withType<Checkstyle> {
         xml.required.set(false)
         html.required.set(true)
     }
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
