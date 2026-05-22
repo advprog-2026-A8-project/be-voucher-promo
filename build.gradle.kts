@@ -5,6 +5,7 @@ plugins {
     jacoco
     id("org.sonarqube") version "4.4.1.3373"
     checkstyle
+    id("me.champeau.jmh") version "0.7.3"
 }
 
 tasks.withType<Test> {
@@ -57,12 +58,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
 
     // All RuntimeOnly Dependencies
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jjwtVersion")
+
+    // Caffeine cache untuk JWT claims
+    implementation("com.github.ben-manes.caffeine:caffeine")
 
     // CompileOnly & Annotation Processors (Tools & Lombok)
     compileOnly("org.projectlombok:lombok")
@@ -77,6 +82,21 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok")
     testAnnotationProcessor("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // JMH
+    jmh("org.openjdk.jmh:jmh-core:1.37")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+    jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+}
+
+jmh {
+    iterations.set(5)
+    warmupIterations.set(3)
+    fork.set(1)
+    timeUnit.set("ms")
+    resultFormat.set("JSON")
+    resultsFile.set(project.file("${buildDir}/reports/jmh/results.json"))
+    benchmarkMode.set(listOf("avgt"))
 }
 
 checkstyle {
