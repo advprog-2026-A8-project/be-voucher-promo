@@ -65,6 +65,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jjwtVersion")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     // Caffeine cache untuk JWT claims
     implementation("com.github.ben-manes.caffeine:caffeine")
@@ -82,6 +83,7 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok")
     testAnnotationProcessor("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
 
     // JMH
     jmh("org.openjdk.jmh:jmh-core:1.37")

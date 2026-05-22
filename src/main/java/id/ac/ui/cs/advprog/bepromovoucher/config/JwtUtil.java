@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.concurrent.TimeUnit;
 
-@Getter
 @Component
 public class JwtUtil {
 
@@ -21,6 +20,7 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
+    @Getter
     private final Cache<String, Claims> claimsCache = Caffeine.newBuilder()
             .maximumSize(500)
             .expireAfterWrite(10, TimeUnit.MINUTES)
